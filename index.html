@@ -133,7 +133,10 @@
 
 <div class="header">
   <h1>💰 精靈們的零用金</h1>
-  <button class="add-btn" onclick="openAdd()">＋</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button onclick="exportBackup()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);border-radius:8px;color:#fff;font-size:0.78rem;padding:5px 10px;cursor:pointer;">⬇ 備份</button>
+    <button class="add-btn" onclick="openAdd()">＋</button>
+  </div>
 </div>
 
 <div class="month-nav">
@@ -143,9 +146,6 @@
     <span class="day-filter-badge" id="dayFilterBadge" onclick="clearDayFilter()"></span>
   </div>
   <button class="month-nav-arrow" onclick="nextMonth()">&#8594;</button>
-</div>
-<div style="display:flex;justify-content:flex-end;padding:6px 16px 0;background:#fff;">
-  <button onclick="exportBackup()" style="background:none;border:none;font-size:0.78rem;color:#94a3b8;cursor:pointer;padding:4px 8px;border-radius:6px;display:flex;align-items:center;gap:4px;">⬇ 備份資料</button>
 </div>
 
 <div class="summary">
