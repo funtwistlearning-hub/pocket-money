@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精靈們的零用金</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+  .header { background: #2563eb; color: #fff; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .header h1 { font-size: 1.2rem; font-weight: 700; }
+  .add-btn { background: #fff; color: #2563eb; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+  .month-nav { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 14px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .month-nav-arrow { background: #f3f4f6; border: none; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 1rem; color: #555; }
+  .month-nav-arrow:hover { background: #e5e7eb; }
+  .month-title-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 140px; }
+  .month-title { font-size: 1.1rem; font-weight: 700; color: #1e40af; cursor: pointer; user-select: none; }
+  .month-title:hover { color: #2563eb; }
+  .day-filter-badge { font-size: 0.75rem; color: #2563eb; background: #eff6ff; border-radius: 20px; padding: 2px 10px; cursor: pointer; display: none; }
+  .day-filter-badge.visible { display: inline-block; }
+  .day-filter-badge:hover { background: #dbeafe; }
+
+  .summary { display: flex; gap: 10px; padding: 14px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .summary-card { flex: 1; border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .summary-card.income { background: #dcfce7; }
+  .summary-card.expense { background: #fee2e2; }
+  .summary-card.balance { background: #dbeafe; }
+  .summary-card .label { font-size: 0.72rem; color: #666; margin-bottom: 4px; }
+  .summary-card .amount { font-size: 1rem; font-weight: 700; }
+  .summary-card.income .amount { color: #16a34a; }
+  .summary-card.expense .amount { color: #dc2626; }
+  .summary-card.balance .amount { color: #1d4ed8; }
+
+  .records { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .day-group { background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow: hidden; }
+  .day-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8faff; border-bottom: 1px solid #e5e7eb; }
+  .day-header .day-label { font-size: 0.85rem; font-weight: 700; color: #1e40af; }
+  .day-header .day-summary { font-size: 0.78rem; color: #888; }
+
+  .record-card { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background .12s; border-bottom: 1px solid #f3f4f6; }
+  .record-card:last-child { border-bottom: none; }
+  .record-card:hover { background: #f8faff; }
+  .record-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .record-icon.income { background: #dcfce7; }
+  .record-icon.expense { background: #fee2e2; }
+  .record-info { flex: 1; min-width: 0; }
+  .record-purpose { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .record-meta { font-size: 0.73rem; color: #888; margin-top: 2px; }
+  .record-amount { text-align: right; flex-shrink: 0; }
+  .record-amount .val { font-size: 0.95rem; font-weight: 700; }
+  .record-amount .balance-after { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+
+  .empty { text-align: center; padding: 60px 20px; color: #aaa; }
+  .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+  .loading { text-align: center; padding: 40px; color: #aaa; }
+
+  /* Modals */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: flex-end; }
+  .overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 20px 20px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 24px 20px 40px; animation: slideUp .25s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #888; }
+
+  .type-toggle { display: flex; background: #f3f4f6; border-radius: 10px; padding: 4px; margin-bottom: 20px; }
+  .type-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; background: transparent; color: #888; transition: all .2s; }
+  .type-btn.active.income { background: #16a34a; color: #fff; }
+  .type-btn.active.expense { background: #dc2626; color: #fff; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.95rem; outline: none; transition: border .2s; background: #fff; }
+  .form-input:focus { border-color: #2563eb; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+
+  .date-display { width: 100%; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.95rem; cursor: pointer; background: #fff; display: flex; align-items: center; justify-content: space-between; color: #333; transition: border .2s; }
+  .date-display:hover { border-color: #2563eb; }
+  .date-display .ph { color: #aaa; }
+
+  .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; color: #fff; margin-top: 8px; }
+  .submit-btn.income { background: #16a34a; }
+  .submit-btn.expense { background: #dc2626; }
+
+  .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { color: #888; }
+  .detail-value { font-weight: 600; text-align: right; max-width: 60%; }
+  .delete-btn { width: 100%; padding: 12px; margin-top: 16px; border: 1.5px solid #dc2626; border-radius: 12px; background: #fff; color: #dc2626; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+  .delete-btn:hover { background: #fee2e2; }
+
+  /* Unified Calendar */
+  .cal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 400; align-items: center; justify-content: center; padding: 16px; }
+  .cal-overlay.open { display: flex; }
+  .cal-box { background: #fff; border-radius: 20px; padding: 20px; width: 100%; max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cal-nav-btn { background: #f3f4f6; border: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 1.1rem; color: #555; display: flex; align-items: center; justify-content: center; }
+  .cal-nav-btn:hover { background: #e5e7eb; }
+  .cal-nav-label { font-size: 1rem; font-weight: 700; color: #1e40af; cursor: pointer; padding: 4px 12px; border-radius: 8px; }
+  .cal-nav-label:hover { background: #eff6ff; }
+
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
+  .cal-weekdays span { text-align: center; font-size: 0.7rem; color: #aaa; padding: 4px 0; font-weight: 600; }
+  .cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+  .cal-day { text-align: center; padding: 8px 2px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; border: none; background: none; color: #333; position: relative; }
+  .cal-day:hover:not(:disabled) { background: #eff6ff; color: #2563eb; }
+  .cal-day.today { font-weight: 700; color: #2563eb; }
+  .cal-day.selected { background: #2563eb; color: #fff; font-weight: 700; }
+  .cal-day.selected:hover { background: #1d4ed8; }
+  .cal-day.other-month { color: #d1d5db; }
+  .cal-day:disabled { cursor: default; }
+  .cal-day.has-dot::after { content:''; position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:#93c5fd; }
+  .cal-day.selected.has-dot::after { background: rgba(255,255,255,.7); }
+
+  .cal-months { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+  .cal-month-btn { padding: 12px 4px; border: none; border-radius: 10px; background: #f3f4f6; cursor: pointer; font-size: 0.88rem; color: #333; font-weight: 600; }
+  .cal-month-btn:hover { background: #eff6ff; color: #2563eb; }
+  .cal-month-btn.active { background: #2563eb; color: #fff; }
+
+  .cal-footer { display: flex; gap: 8px; margin-top: 16px; }
+  .cal-cancel { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 10px; background: #fff; cursor: pointer; font-size: 0.9rem; color: #555; }
+  .cal-confirm { flex: 1; padding: 10px; border: none; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+  .cal-confirm:hover { background: #1d4ed8; }
+  .cal-show-all { flex: 1; padding: 10px; border: 1.5px solid #2563eb; border-radius: 10px; background: #fff; color: #2563eb; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+  .cal-show-all:hover { background: #eff6ff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💰 精靈們的零用金</h1>
+  <button class="add-btn" onclick="openAdd()">＋</button>
+</div>
+
+<div class="month-nav">
+  <button class="month-nav-arrow" onclick="prevMonth()">&#8592;</button>
+  <div class="month-title-wrap">
+    <div class="month-title" id="monthTitle" onclick="openCalNav()"></div>
+    <span class="day-filter-badge" id="dayFilterBadge" onclick="clearDayFilter()"></span>
+  </div>
+  <button class="month-nav-arrow" onclick="nextMonth()">&#8594;</button>
+</div>
+
+<div class="summary">
+  <div class="summary-card income"><div class="label">收入</div><div class="amount" id="totalIncome">$0</div></div>
+  <div class="summary-card expense"><div class="label">支出</div><div class="amount" id="totalExpense">$0</div></div>
+  <div class="summary-card balance"><div class="label">結餘</div><div class="amount" id="totalBalance">$0</div></div>
+</div>
+
+<div class="records" id="recordsList"><div class="loading">載入中...</div></div>
+
+<!-- 新增 Modal -->
+<div class="overlay" id="addOverlay" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal">
+    <div class="modal-title">
+      <span>新增紀錄</span>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="type-toggle">
+      <button class="type-btn active expense" id="btnExpense" onclick="setType('expense')">支出</button>
+      <button class="type-btn income" id="btnIncome" onclick="setType('income')">收入</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">金額 *</label>
+        <input class="form-input" id="fAmount" type="number" placeholder="0" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">日期 *</label>
+        <div class="date-display" onclick="openCalForm()">
+          <span id="fDateText" class="ph">選擇日期</span>
+          <span>📅</span>
+        </div>
+        <input type="hidden" id="fDate">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">用途 *</label>
+      <input class="form-input" id="fPurpose" type="text" placeholder="例如：辦公室零食">
+    </div>
+    <div class="form-group">
+      <label class="form-label">登記人 *</label>
+      <input class="form-input" id="fPerson" type="text" placeholder="姓名">
+    </div>
+    <div class="form-group">
+      <label class="form-label">備注</label>
+      <input class="form-input" id="fNote" type="text" placeholder="（選填）">
+    </div>
+    <button class="submit-btn expense" id="submitBtn" onclick="submitRecord()">儲存</button>
+  </div>
+</div>
+
+<!-- 詳細 Modal -->
+<div class="overlay" id="detailOverlay" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal">
+    <div class="modal-title">
+      <span>詳細資訊</span>
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div id="detailContent"></div>
+    <button class="delete-btn" onclick="deleteRecord()">刪除此筆紀錄</button>
+  </div>
+</div>
+
+<!-- 統一月曆 -->
+<div class="cal-overlay" id="calOverlay" onclick="if(event.target===this)closeCal()">
+  <div class="cal-box">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calShiftPrev()">&#8592;</button>
+      <span class="cal-nav-label" id="calNavLabel" onclick="calToggleMode()"></span>
+      <button class="cal-nav-btn" onclick="calShiftNext()">&#8594;</button>
+    </div>
+    <div id="calBody"></div>
+    <div class="cal-footer" id="calFooter"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyDJmxKPvO8H583mUEPG4nnlaT2fyHZsDo0",
+  authDomain: "pocket-money-475ad.firebaseapp.com",
+  databaseURL: "https://pocket-money-475ad-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pocket-money-475ad",
+  storageBucket: "pocket-money-475ad.firebasestorage.app",
+  messagingSenderId: "7116368710",
+  appId: "1:7116368710:web:6e0ed934afc1953a939347"
+};
+
+var db = null;
+var records = [];
+var currentType = 'expense';
+var currentDetailId = null;
+
+var now = new Date();
+var viewYear = now.getFullYear();
+var viewMonth = now.getMonth();
+var viewDate = null; // null = show whole month, 'YYYY-MM-DD' = filter to one day
+
+// Calendar state
+// calCtx: 'form' | 'nav'
+var calCtx = 'form';
+var calMode = 'day';
+var calYear = now.getFullYear();
+var calMonth = now.getMonth();
+var calSelected = null;
+
+var WEEKDAYS = ['日','一','二','三','四','五','六'];
+var MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  listenRecords();
+} catch(e) {
+  console.error('Firebase init failed', e);
+  renderList([]);
+}
+
+function listenRecords() {
+  db.ref('records').on('value', function(snap) {
+    records = [];
+    var data = snap.val();
+    if (data) { Object.keys(data).forEach(function(k) { records.push(data[k]); }); }
+    records.sort(function(a,b){ return b.date>a.date?1:-1; });
+    renderPage();
+  });
+}
+
+// ===== Render =====
+function renderPage() {
+  document.getElementById('monthTitle').textContent = viewYear + ' 年 ' + (viewMonth+1) + ' 月';
+
+  var badge = document.getElementById('dayFilterBadge');
+  if (viewDate) {
+    badge.textContent = viewDate + ' ✕';
+    badge.className = 'day-filter-badge visible';
+  } else {
+    badge.className = 'day-filter-badge';
+  }
+
+  var list = getViewRecords();
+  var inc=0, exp=0;
+  list.forEach(function(r){ if(r.type==='income') inc+=r.amount; else exp+=r.amount; });
+  var bal = inc - exp;
+  document.getElementById('totalIncome').textContent = '$'+fmt(inc);
+  document.getElementById('totalExpense').textContent = '$'+fmt(exp);
+  document.getElementById('totalBalance').textContent = (bal>=0?'+':'')+'$'+fmt(bal);
+  document.getElementById('totalBalance').style.color = bal>=0 ? '#1d4ed8' : '#dc2626';
+  renderList(list);
+}
+
+function getViewRecords() {
+  if (viewDate) {
+    return records.filter(function(r){ return r.date===viewDate; });
+  }
+  return records.filter(function(r){
+    var d = new Date(r.date+'T00:00:00');
+    return d.getFullYear()===viewYear && d.getMonth()===viewMonth;
+  });
+}
+
+function renderList(list) {
+  var el = document.getElementById('recordsList');
+  if (!list.length) {
+    var msg = viewDate ? '這天沒有紀錄' : '這個月還沒有紀錄';
+    el.innerHTML='<div class="empty"><div class="icon">📭</div><div>'+msg+'</div></div>';
+    return;
+  }
+  var allSorted = records.slice().sort(function(a,b){ return a.date>b.date?1:(a.date<b.date?-1:(a.createdAt>b.createdAt?1:-1)); });
+  var balMap={}; var running=0;
+  allSorted.forEach(function(r){ running+=r.type==='income'?r.amount:-r.amount; balMap[r.id]=running; });
+
+  var sorted = list.slice().sort(function(a,b){ return b.date>a.date?1:(b.date<a.date?-1:(b.createdAt>a.createdAt?1:-1)); });
+  var groups=[]; var gmap={};
+  sorted.forEach(function(r){ if(!gmap[r.date]){gmap[r.date]=[];groups.push(r.date);} gmap[r.date].push(r); });
+
+  var html='';
+  groups.forEach(function(date){
+    var recs=gmap[date];
+    var d=new Date(date+'T00:00:00');
+    var dInc=0,dExp=0;
+    recs.forEach(function(r){ if(r.type==='income') dInc+=r.amount; else dExp+=r.amount; });
+    var sumParts=[];
+    if(dInc>0) sumParts.push('+$'+fmt(dInc));
+    if(dExp>0) sumParts.push('-$'+fmt(dExp));
+    html+='<div class="day-group">';
+    html+='<div class="day-header"><span class="day-label">'+date+'（'+WEEKDAYS[d.getDay()]+'）</span><span class="day-summary">'+sumParts.join('　')+'</span></div>';
+    recs.forEach(function(r){
+      var isInc=r.type==='income';
+      html+='<div class="record-card" onclick="openDetail(\''+r.id+'\')">';
+      html+='<div class="record-icon '+r.type+'">'+(isInc?'💵':'💸')+'</div>';
+      html+='<div class="record-info"><div class="record-purpose">'+esc(r.purpose)+'</div>';
+      html+='<div class="record-meta">'+(r.person?esc(r.person):'')+(r.note?(r.person?' · ':'')+esc(r.note):'')+'</div></div>';
+      html+='<div class="record-amount"><div class="val" style="color:'+(isInc?'#16a34a':'#dc2626')+'">'+(isInc?'+':'-')+'$'+fmt(r.amount)+'</div>';
+      html+='<div class="balance-after">餘 $'+fmt(balMap[r.id])+'</div></div></div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+// ===== Add modal =====
+function openAdd() {
+  setFormDate(toDateStr(new Date()));
+  document.getElementById('fAmount').value='';
+  document.getElementById('fPurpose').value='';
+  document.getElementById('fPerson').value='';
+  document.getElementById('fNote').value='';
+  setType('expense');
+  document.getElementById('addOverlay').classList.add('open');
+}
+function closeAddModal(){ document.getElementById('addOverlay').classList.remove('open'); }
+
+function setType(t){
+  currentType=t;
+  document.getElementById('btnExpense').className='type-btn'+(t==='expense'?' active expense':'');
+  document.getElementById('btnIncome').className='type-btn'+(t==='income'?' active income':'');
+  document.getElementById('submitBtn').className='submit-btn '+t;
+}
+
+function setFormDate(ds){
+  document.getElementById('fDate').value=ds;
+  var txt=document.getElementById('fDateText');
+  if(ds){ txt.textContent=ds; txt.className=''; }
+  else { txt.textContent='選擇日期'; txt.className='ph'; }
+}
+
+function submitRecord(){
+  var amount=parseFloat(document.getElementById('fAmount').value);
+  var date=document.getElementById('fDate').value;
+  var purpose=document.getElementById('fPurpose').value.trim();
+  var person=document.getElementById('fPerson').value.trim();
+  var note=document.getElementById('fNote').value.trim();
+  if(!amount||amount<=0){ alert('請輸入有效金額'); return; }
+  if(!date){ alert('請選擇日期'); return; }
+  if(!purpose){ alert('請輸入用途'); return; }
+  if(!person){ alert('請輸入登記人'); return; }
+  var id=Date.now().toString(36)+Math.random().toString(36).substr(2,5);
+  var rec={id:id,type:currentType,amount:amount,date:date,purpose:purpose,person:person,note:note,createdAt:Date.now()};
+  if(db){ db.ref('records/'+id).set(rec).then(function(){ closeAddModal(); }).catch(function(e){ alert('儲存失敗：'+e.message); }); }
+  else { alert('資料庫未連線'); }
+}
+
+// ===== Detail =====
+function openDetail(id){
+  currentDetailId=id;
+  var r=records.find(function(x){return x.id===id;});
+  if(!r) return;
+  var isInc=r.type==='income';
+  document.getElementById('detailContent').innerHTML=
+    drow('類型',isInc?'<span style="color:#16a34a">收入</span>':'<span style="color:#dc2626">支出</span>')+
+    drow('金額',(isInc?'+':'-')+'$'+fmt(r.amount))+
+    drow('日期',r.date)+
+    drow('用途',esc(r.purpose))+
+    drow('登記人',esc(r.person||'—'))+
+    (r.note?drow('備注',esc(r.note)):'');
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function drow(l,v){ return '<div class="detail-row"><span class="detail-label">'+l+'</span><span class="detail-value">'+v+'</span></div>'; }
+function closeDetailModal(){ document.getElementById('detailOverlay').classList.remove('open'); }
+function deleteRecord(){
+  if(!currentDetailId||!confirm('確定要刪除這筆紀錄嗎？')) return;
+  if(db){ db.ref('records/'+currentDetailId).remove().then(function(){ closeDetailModal(); }).catch(function(e){ alert('刪除失敗：'+e.message); }); }
+}
+
+// ===== Calendar =====
+// Open from form date picker
+function openCalForm(){
+  calCtx='form';
+  var sel=document.getElementById('fDate').value;
+  if(sel){ var p=sel.split('-'); calYear=parseInt(p[0]); calMonth=parseInt(p[1])-1; calSelected=sel; }
+  else { calYear=now.getFullYear(); calMonth=now.getMonth(); calSelected=null; }
+  calMode='day';
+  renderCal();
+  document.getElementById('calOverlay').classList.add('open');
+}
+
+// Open from month nav title — shows current view month, day mode
+function openCalNav(){
+  calCtx='nav';
+  calYear=viewYear;
+  calMonth=viewMonth;
+  calSelected=viewDate; // highlight any currently filtered day
+  calMode='day';
+  renderCal();
+  document.getElementById('calOverlay').classList.add('open');
+}
+
+function closeCal(){ document.getElementById('calOverlay').classList.remove('open'); }
+
+function calToggleMode(){
+  calMode = calMode==='day' ? 'month' : 'day';
+  renderCal();
+}
+
+function calShiftPrev(){
+  if(calMode==='month'){ calYear--; }
+  else { calMonth--; if(calMonth<0){calMonth=11;calYear--;} }
+  renderCal();
+}
+function calShiftNext(){
+  if(calMode==='month'){ calYear++; }
+  else { calMonth++; if(calMonth>11){calMonth=0;calYear++;} }
+  renderCal();
+}
+
+function renderCal(){
+  var label = calMode==='month' ? calYear+' 年' : calYear+' 年 '+MONTH_NAMES[calMonth];
+  document.getElementById('calNavLabel').textContent = label;
+
+  var datesWithRec={};
+  records.forEach(function(r){ datesWithRec[r.date]=true; });
+  var todayStr=toDateStr(new Date());
+
+  var body='';
+  if(calMode==='month'){
+    body+='<div class="cal-months">';
+    MONTH_NAMES.forEach(function(m,i){
+      var isActive = (calCtx==='nav') ? (calYear===viewYear && i===viewMonth) : false;
+      if(calCtx==='form' && calSelected){ var p=calSelected.split('-'); isActive=parseInt(p[0])===calYear && parseInt(p[1])-1===i; }
+      body+='<button class="cal-month-btn'+(isActive?' active':'')+'" onclick="calPickMonth('+i+')">'+m+'</button>';
+    });
+    body+='</div>';
+  } else {
+    var firstDay=new Date(calYear,calMonth,1).getDay();
+    var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+    var daysInPrev=new Date(calYear,calMonth,0).getDate();
+    body+='<div class="cal-weekdays">';
+    WEEKDAYS.forEach(function(w){ body+='<span>'+w+'</span>'; });
+    body+='</div><div class="cal-days">';
+    for(var i=0;i<firstDay;i++) body+='<button class="cal-day other-month" disabled>'+(daysInPrev-firstDay+1+i)+'</button>';
+    for(var d=1;d<=daysInMonth;d++){
+      var ds=calYear+'-'+pad(calMonth+1)+'-'+pad(d);
+      var cls='cal-day';
+      if(ds===todayStr) cls+=' today';
+      if(ds===calSelected) cls+=' selected';
+      if(datesWithRec[ds]) cls+=' has-dot';
+      body+='<button class="'+cls+'" onclick="calPickDay(\''+ds+'\')">'+d+'</button>';
+    }
+    var tail=(firstDay+daysInMonth)%7;
+    if(tail) for(var i=1;i<=7-tail;i++) body+='<button class="cal-day other-month" disabled>'+i+'</button>';
+    body+='</div>';
+  }
+  document.getElementById('calBody').innerHTML=body;
+
+  var footer='';
+  if(calCtx==='form'){
+    footer='<button class="cal-cancel" onclick="closeCal()">取消</button><button class="cal-confirm" onclick="calConfirmForm()">確定</button>';
+  } else {
+    // nav context
+    footer='<button class="cal-cancel" onclick="closeCal()">關閉</button>';
+    if(viewDate) footer='<button class="cal-show-all" onclick="clearDayFilter();closeCal()">顯示整月</button>'+footer;
+  }
+  document.getElementById('calFooter').innerHTML=footer;
+}
+
+function calPickMonth(m){
+  if(calCtx==='nav'){
+    viewYear=calYear; viewMonth=m; viewDate=null;
+    calMonth=m;
+    calMode='day';
+    renderCal();
+    renderPage();
+  } else {
+    calMonth=m; calMode='day'; renderCal();
+  }
+}
+
+function calPickDay(ds){
+  calSelected=ds;
+  if(calCtx==='nav'){
+    // immediately filter to this day
+    var p=ds.split('-');
+    viewYear=parseInt(p[0]); viewMonth=parseInt(p[1])-1; viewDate=ds;
+    renderCal(); // re-render to update highlight
+    renderPage();
+    closeCal();
+  } else {
+    renderCal();
+  }
+}
+
+function calConfirmForm(){
+  if(!calSelected){ alert('請選擇日期'); return; }
+  setFormDate(calSelected);
+  closeCal();
+}
+
+function clearDayFilter(){
+  viewDate=null;
+  renderPage();
+}
+
+// Month nav arrows
+function prevMonth(){ viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} viewDate=null; renderPage(); }
+function nextMonth(){ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} viewDate=null; renderPage(); }
+
+function fmt(n){ return Number(n).toLocaleString('zh-TW'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toDateStr(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function pad(n){ return n<10?'0'+n:''+n; }
+</script>
+</body>
+</html>
