@@ -144,6 +144,9 @@
   </div>
   <button class="month-nav-arrow" onclick="nextMonth()">&#8594;</button>
 </div>
+<div style="display:flex;justify-content:flex-end;padding:6px 16px 0;background:#fff;">
+  <button onclick="exportBackup()" style="background:none;border:none;font-size:0.78rem;color:#94a3b8;cursor:pointer;padding:4px 8px;border-radius:6px;display:flex;align-items:center;gap:4px;">⬇ 備份資料</button>
+</div>
 
 <div class="summary">
   <div class="summary-card income"><div class="label">收入</div><div class="amount" id="totalIncome">$0</div></div>
@@ -540,6 +543,18 @@ function clearDayFilter(){
 // Month nav arrows
 function prevMonth(){ viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} viewDate=null; renderPage(); }
 function nextMonth(){ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} viewDate=null; renderPage(); }
+
+function exportBackup(){
+  if(!records.length){ alert('目前沒有資料可以備份'); return; }
+  var sorted = records.slice().sort(function(a,b){ return a.date>b.date?1:-1; });
+  var json = JSON.stringify(sorted, null, 2);
+  var blob = new Blob([json], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var today = toDateStr(new Date());
+  a.href = url; a.download = '零用金備份_' + today + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
 
 function fmt(n){ return Number(n).toLocaleString('zh-TW'); }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
