@@ -288,9 +288,18 @@ function renderPage() {
   }
 
   var list = getViewRecords();
+
+  // 當月收入／支出（只算本月）
   var inc=0, exp=0;
   list.forEach(function(r){ if(r.type==='income') inc+=r.amount; else exp+=r.amount; });
-  var bal = inc - exp;
+
+  // 累計結餘：所有「截至本月底」的紀錄加總
+  var cutoff = viewYear + '-' + pad(viewMonth+1) + '-99'; // 大於當月任何日期
+  var bal = 0;
+  records.forEach(function(r){
+    if(r.date <= cutoff) bal += r.type==='income' ? r.amount : -r.amount;
+  });
+
   document.getElementById('totalIncome').textContent = '$'+fmt(inc);
   document.getElementById('totalExpense').textContent = '$'+fmt(exp);
   document.getElementById('totalBalance').textContent = (bal>=0?'+':'')+'$'+fmt(bal);
